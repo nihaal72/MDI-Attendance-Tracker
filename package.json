@@ -4,12 +4,10 @@
   "private": true,
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
+    "react-dom": "^18.2.0",
     "esbuild": "^0.19.2"
   },
   "scripts": {
-    "build": "esbuild App.js --bundle --outfile=build/bundle.js --loader:.js=jsx"
+    "build": "mkdir -p build && esbuild App.js --bundle --outfile=build/bundle.js --loader:.js=jsx"
   }
 }
