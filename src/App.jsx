@@ -148,17 +148,18 @@ const Dashboard = ({ userId }) => {
     }, [userId]);
 
     const addCourse = async (course) => {
+        setAddModalOpen(false); // Close modal optimistically
         try {
             const newCourseRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/courses`), course);
             setOpenCourseId(newCourseRef.id);
         } catch (error) { 
-            console.error("Error adding course:", error); 
-        } finally {
-            setAddModalOpen(false);
+            console.error("Error adding course:", error);
+            setAlertInfo({isOpen: true, message: "Failed to save course. Please try again."});
         }
     };
 
     const saveProfile = async (newName, timetableBase64) => {
+        setEditProfileModalOpen(false); // Close modal optimistically
         if (!auth.currentUser) {
             setAlertInfo({ isOpen: true, message: "Authentication error. Please refresh and try again." });
             return;
@@ -171,8 +172,6 @@ const Dashboard = ({ userId }) => {
         } catch (error) { 
             console.error("Error saving profile:", error); 
             setAlertInfo({isOpen: true, message: "Failed to save profile."});
-        } finally {
-            setEditProfileModalOpen(false);
         }
     };
 
