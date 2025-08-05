@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, setLogLevel, serverTimestamp, query, orderBy, limit, getDocs, enableIndexedDbPersistence } from 'firebase/firestore';
-import { Plus, Edit, Trash2, X, AlertTriangle, CheckCircle, Minus, Info, User, Calendar, Upload, ChevronDown, BookOpen, Download, Bell, TrendingDown, Wifi, WifiOff } from 'lucide-react';
+import { Plus, Edit, Trash2, X, AlertTriangle, CheckCircle, Minus, Info, User, Calendar, Upload, ChevronDown, BookOpen, Download, Bell, TrendingDown } from 'lucide-react';
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -34,46 +34,6 @@ try {
 } catch (e) {
     console.error("Firebase initialization error:", e);
 }
-
-// --- PWA Status Component ---
-const PWAStatus = () => {
-    const [status, setStatus] = useState({ online: navigator.onLine, message: '' });
-
-    useEffect(() => {
-        const goOnline = () => setStatus({ online: true, message: 'You are back online.' });
-        const goOffline = () => setStatus({ online: false, message: 'You are offline. Changes will be saved locally.' });
-
-        window.addEventListener('online', goOnline);
-        window.addEventListener('offline', goOffline);
-        
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-             setStatus({ online: navigator.onLine, message: 'App is ready for offline use.' });
-        }
-
-        return () => {
-            window.removeEventListener('online', goOnline);
-            window.removeEventListener('offline', goOffline);
-        };
-    }, []);
-    
-     useEffect(() => {
-        if (status.message) {
-            const timer = setTimeout(() => setStatus(prev => ({ ...prev, message: '' })), 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [status.message]);
-
-
-    if (!status.message) return null;
-
-    return (
-        <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg text-white flex items-center gap-2 transition-opacity duration-300 ${status.online ? 'bg-green-600' : 'bg-gray-600'}`}>
-            {status.online ? <Wifi size={16} /> : <WifiOff size={16} />}
-            <span className="text-sm">{status.message}</span>
-        </div>
-    );
-};
-
 
 // --- Main App Component ---
 export default function App() {
@@ -109,7 +69,6 @@ export default function App() {
                     {user ? <Dashboard userId={user.uid} /> : <p className="text-center">Authenticating...</p>}
                 </div>
             )}
-            <PWAStatus />
         </div>
     );
 }
@@ -153,7 +112,7 @@ const Dashboard = ({ userId }) => {
     const [profileModalMode, setProfileModalMode] = useState('profile');
     const [isTimetableModalOpen, setTimetableModalOpen] = useState(false);
     const [alertInfo, setAlertInfo] = useState({ isOpen: false, message: '' });
-    const [initialProfileCheckDone, setInitialProfileCheckDone] = useState(false);
+    const initialProfileCheckRef = useRef(false);
     const [openCourseId, setOpenCourseId] = useState(null);
 
     useEffect(() => {
@@ -164,12 +123,12 @@ const Dashboard = ({ userId }) => {
             const data = docSnap.exists() ? docSnap.data() : { name: null, timetableUrl: null };
             setProfile({ name: data.name || '', timetableUrl: data.timetableUrl || '' });
 
-            if (!initialProfileCheckDone) {
+            if (!initialProfileCheckRef.current) {
                 if (!data.name) {
                     setProfileModalMode('profile');
                     setEditProfileModalOpen(true); 
                 }
-                setInitialProfileCheckDone(true);
+                initialProfileCheckRef.current = true;
             }
         });
 
@@ -186,14 +145,17 @@ const Dashboard = ({ userId }) => {
             unsubscribeProfile();
             unsubscribeCourses();
         };
-    }, [userId, initialProfileCheckDone]);
+    }, [userId]);
 
     const addCourse = async (course) => {
         try {
             const newCourseRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/courses`), course);
-            setAddModalOpen(false);
             setOpenCourseId(newCourseRef.id);
-        } catch (error) { console.error("Error adding course:", error); }
+        } catch (error) { 
+            console.error("Error adding course:", error); 
+        } finally {
+            setAddModalOpen(false);
+        }
     };
 
     const saveProfile = async (newName, timetableBase64) => {
@@ -206,10 +168,11 @@ const Dashboard = ({ userId }) => {
         
         try {
             await setDoc(profileDocRef, { name: newName.trim(), timetableUrl: timetableBase64 }, { merge: true });
-            setEditProfileModalOpen(false);
         } catch (error) { 
             console.error("Error saving profile:", error); 
             setAlertInfo({isOpen: true, message: "Failed to save profile."});
+        } finally {
+            setEditProfileModalOpen(false);
         }
     };
 
